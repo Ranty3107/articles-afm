@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARTICLES AFM</title>
+    <style>
+        /* --- STYLE GLOBAL --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        /* --- CONTENEUR D'EN-TÊTE FIGÉ (Sticky) --- */
+        .header-fixe {
+            position: sticky;
+            top: 0;
+            background-color: white; /* Fond blanc opaque indispensable pour masquer les produits dessous */
+            z-index: 100;            /* Reste au-dessus de tout le reste */
+            padding-top: 5px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f4f7f6; /* Petite séparation esthétique */
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* --- BARRE DE RECHERCHE --- */
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 20px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #3498db;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .info-text {
+            font-style: italic;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+
+        /* --- TABLEAU DE RÉSULTATS --- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: white;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        /* --- LIGNES DE TITRES FIGÉES JUSTE EN DESSOUS --- */
+        th {
+            background-color: #34495e;
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 185px;  /* S'aligne parfaitement après le bloc .header-fixe */
+            z-index: 90;  /* Niveau de superposition légèrement inférieur au header principal */
+        }
+
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .no-result {
+            text-align: center;
+            padding: 20px;
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-fixe">
+        <h1>Recherche de Produits</h1>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Recherche par RefCode, Code ou Description (Ex: REF*, *123, *shirt*)...">
+            <button id="searchBtn">Rechercher</button>
+        </div>
+
+        <div id="infoZone" class="info-text">Tous les produits sont affichés par défaut.</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>RefCode</th>
+                <th>Code Produit</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody id="resultTableBody"></tbody>
+    </table>
+</div>
+
+<script>
+    // --- 1. BASE DE DONNÉES
+    const donneesProduits = [
+        { refcode: "", code: "E5159", desclong: "Le Pantalon Cargo en Toile Marine" },
+        { refcode: "17283727", code: "H5102", desclong: "Mocassins Scratchés Style Bateau" },
+        { refcode: "", code: "J0157", desclong: "Le Jean Gris Coupe Droite" },
+        { refcode: "", code: "J8162", desclong: "Mocassins Scratchés Arizona" },
+        { refcode: "17396979", code: "J9153", desclong: "Lot de 2 Casquettes Microfibre Estivales" },
+        { refcode: "17399867", code: "K1183", desclong: "Lot de 5 Polos Unis Summer" },
+        { refcode: "", code: "L4125", desclong: "Chemisette à Carreaux Bleu" },
+        { refcode: "", code: "L6109", desclong: "Chemisette Crépon Rayée Athena" },
+        { refcode: "18845407", code: "L6176", desclong: "Le Bermuda Cargo en Toile Santorin" },
+        { refcode: "", code: "L4124", desclong: "La Veste en Jean Spring Adventure" },
+        { refcode: "18845405", code: "L4164", desclong: "L’ensemble Jogging Microfibre Sport Team" },
+        { refcode: "", code: "M1102", desclong: "La Ceinture Cache-Billets" },
+        { refcode: "", code: "M1105", desclong: "Lot de 2 Jeans Regular Stretch Confort" },
+        { refcode: "17396980", code: "M9152", desclong: "Lot de 4 Débardeurs Blanc" },
+        { refcode: "", code: "N7144", desclong: "Lot de 5 Slips Rayés" },
+        { refcode: "", code: "N3139", desclong: "Lot de 2 Shorts Microfibre Running" },
+        { refcode: "", code: "N8109", desclong: "Le Lot de 2 Vestes Polaires Sport Mountain" },
+        { refcode: "17396803", code: "N2138", desclong: "Sandales Estivales Scratchées" },
+        { refcode: "", code: "N0154", desclong: "Lot de 2 Shorts de Bain Microfibre" },
+        { refcode: "", code: "N0102", desclong: "Lot de 2 Boxers Stretch Confort" },
+        { refcode: "17283750", code: "N5145", desclong: "Lot de 2 Shorts Microfibre Sport" },
+        { refcode: "", code: "N1144", desclong: "Lot de 2 Bermudas Sport Effet flammé" },
+        { refcode: "", code: "P3119", desclong: "La Chemisette Popeline à Carreaux Détails Chambray" },
+        { refcode: "", code: "P4128", desclong: "La Chemisette Popeline Pilote Estivale" },
+        { refcode: "", code: "P4128", desclong: "La Chemisette Popeline Pilote Estivale" },
+        { refcode: "", code: "P4147", desclong: "Pyjashort Carreaux Bleu" },
+        { refcode: "18845417", code: "P4152", desclong: "Le Pantalon 7 poches Taille Semi-Elastiquée Multipoche" },
+        { refcode: "15561484", code: "P4152", desclong: "Le Pantalon 7 poches Taille Semi-Elastiquée Multipoche" },
+        { refcode: "17283768", code: "P4154", desclong: "Chaussures Sport Spring" },
+        { refcode: "", code: "P5111", desclong: "Blouson en Twill Exploration" },
+        { refcode: "", code: "P5117", desclong: "Les Mocassins Confort" },
+        { refcode: "", code: "P5119", desclong: "Le Pantacourt Cargo Jean Stretch Confort" },
+        { refcode: "", code: "P5120", desclong: "La Chemisette Tropic Palm" },
+        { refcode: "15776276", code: "P5148", desclong: "Le Polo Maille Piquée South Island" },
+        { refcode: "18845422", code: "P5148", desclong: "Le Polo Maille Piquée South Island" },
+        { refcode: "13411624", code: "P5148", desclong: "Le Polo Maille Piquée South Island" },
+        { refcode: "", code: "P5150", desclong: "Lot de 2 Shorts Sport" },
+        { refcode: "18845424", code: "P6118", desclong: "Le Lot de 2 Bermudas en Jean Stretch Confort" },
+        { refcode: "14964391", code: "P6118", desclong: "Le Lot de 2 Bermudas en Jean Stretch Confort" },
+        { refcode: "15776719", code: "P6118", desclong: "Le Lot de 2 Bermudas en Jean Stretch Confort" },
+        { refcode: "", code: "P6155", desclong: "Lot de 4 Paires de Chaussettes Mi-Hautes" },
+        { refcode: "17283791", code: "P6156", desclong: "Lot de 3 Tee-Shirts Active Summer" },
+        { refcode: "", code: "P7101", desclong: "Le Lot de 2 Boxers Sport" },
+        { refcode: "", code: "P7115", desclong: "Le Lot de 2 Polos Outdoor" },
+        { refcode: "", code: "P7151", desclong: "Le Lot de 2 Casquettes Microfibre Sport" },
+        { refcode: "18845429", code: "P7153", desclong: "Le Bermuda Cargo en Jean Stretch Confort" },
+        { refcode: "15164755", code: "P8143", desclong: "Le Lot de 3 Débardeurs Sport" },
+        { refcode: "18845430", code: "P8143", desclong: "Le Lot de 3 Débardeurs Sport" },
+        { refcode: "15561517", code: "P9127", desclong: "Le Jean Regular Stretch Confort Bleu Clair" },
+        { refcode: "18845431", code: "P9127", desclong: "Le Jean Regular Stretch Confort Bleu Clair" },
+        { refcode: "15920957", code: "Q0107", desclong: "Le Pyjashort Uni et Carreaux Nature" },
+        { refcode: "18845432", code: "Q0107", desclong: "Le Pyjashort Uni et Carreaux Nature" },
+        { refcode: "15920960", code: "Q0110", desclong: "Pyjama Col Boutonné Rayé" },
+        { refcode: "16489450", code: "Q0110", desclong: "Pyjama Col Boutonné Rayé" },
+        { refcode: "16147488", code: "Q1107", desclong: "Le Jean Regular Stretch Confort Bleu Brut" },
+        { refcode: "18845434", code: "Q1107", desclong: "Le Jean Regular Stretch Confort Bleu Brut" },
+        { refcode: "16147515", code: "Q1136", desclong: "Blouson Suédine Doublé Polaire" },
+        { refcode: "17617958", code: "Q1136", desclong: "Blouson Suédine Doublé Polaire" },
+        { refcode: "", code: "Q2127", desclong: "Tee-shirt Tie and Dye" },
+        { refcode: "16320520", code: "Q2142", desclong: "Pantalon Chino Stretch Vert" },
+        { refcode: "17617963", code: "Q2142", desclong: "Pantalon Chino Stretch Vert" },
+        { refcode: "", code: "Q2148", desclong: "Le Coffret de 4 Paires de Chaussettes Motifs Jacquard" },
+        { refcode: "18845436", code: "Q3101", desclong: "Le Lot de 3 Slips Confort" },
+        { refcode: "16489459", code: "Q3101", desclong: "Le Lot de 3 Slips Confort" },
+        { refcode: "17168879", code: "Q3101", desclong: "Le Lot de 3 Slips Confort" },
+        { refcode: "", code: "Q3106", desclong: "La Montre + 2 Bracelets" },
+        { refcode: "18845438", code: "Q4113", desclong: "Le Pantalon Coton Détente" },
+        { refcode: "18845439", code: "Q5123", desclong: "Les Chaussures de Sport Tout-Terrain" },
+        { refcode: "17436086", code: "Q5123", desclong: "Les Chaussures de Sport Tout-Terrain" },
+        { refcode: "18845440", code: "Q6108", desclong: "Le Lot de 2 Sweats Molleton Col Zippé" },
+        { refcode: "18845441", code: "Q7109", desclong: "Le Pyjama Nature en Coton" },
+        { refcode: "17763016", code: "Q7113", desclong: "Lot de 4 Tee-Shirts Coton Unis" },
+        { refcode: "17763018", code: "Q7117", desclong: "L'Authentique Chemise en Jean" },
+        { refcode: "18845442", code: "Q7119", desclong: "La Chemise Popeline Manches Longues à Carreaux" },
+        { refcode: "18845443", code: "Q7124", desclong: "Les Mocassins Doubles Scratchs" },
+        { refcode: "18845443", code: "Q7124", desclong: "Les Mocassins Doubles Scratchs" },
+        { refcode: "18845444", code: "Q7130", desclong: "Le Jean Taille Semi-Elastiquée Cargo Stretch Bleu Clair" },
+        { refcode: "18845445", code: "Q8106", desclong: "La Ceinture en Croûte de Cuir Marron" },
+        { refcode: "17014782", code: "Q8106", desclong: "La Ceinture en Croûte de Cuir Marron" },
+        { refcode: "18845446", code: "Q8114", desclong: "Le Lot de 4 Tee-shirts Manches Courtes Col Rond" },
+        { refcode: "17763026", code: "Q8116", desclong: "La Veste Saharienne d'Eté" },
+        { refcode: "18845447", code: "Q8116", desclong: "La Veste Saharienne d'Eté" },
+        { refcode: "18845448", code: "Q8122", desclong: "Le Blouson Mi-Saison en Twill" },
+        { refcode: "17763030", code: "Q8125", desclong: "Chemisette en Popeline à Carreaux" },
+        { refcode: "18845449", code: "Q8127", desclong: "Le Lot de 2 Polos Col Zippé" },
+        { refcode: "17014788", code: "Q8127", desclong: "Le Lot de 2 Polos Col Zippé" },
+        { refcode: "18845450", code: "Q8131", desclong: "Le Lot de 2 Tee-Shirts Col Boutonnés" },
+        { refcode: "18845450", code: "Q8131", desclong: "Le Lot de 2 Tee-Shirts Col Boutonnés" },
+        { refcode: "17014793", code: "Q8135", desclong: "Tee-Shirt Tie and Dye Imprimé Lion" },
+        { refcode: "17014795", code: "Q8138", desclong: "Pull Tricot Chiné Col Rond" },
+        { refcode: "18848837", code: "Q8138", desclong: "Pull Tricot Chiné Col Rond" },
+        { refcode: "18845451", code: "Q8139", desclong: "Le Lot de 2 Polos Piqués Trendy" },
+        { refcode: "18845453", code: "Q8146", desclong: "Le Lot de 3 Tee-Shirts Sans Manches" },
+        { refcode: "18845453", code: "Q8146", desclong: "Le Lot de 3 Tee-Shirts Sans Manches" },
+        { refcode: "17661206", code: "Q8147", desclong: "Lot de 2 Pantalons 7 Poches Taille Semi-Élastiquée" },
+        { refcode: "18845454", code: "Q9111", desclong: "La Chemise Manches Courtes en Popeline" },
+        { refcode: "19067129", code: "Q9119", desclong: "Le Lot de 3 Tee-Shirts Atlas® Sport" },
+        { refcode: "17014806", code: "Q9119", desclong: "Le Lot de 3 Tee-Shirts Atlas® Sport" },
+        { refcode: "18845455", code: "Q9119", desclong: "Le Lot de 3 Tee-Shirts Atlas® Sport" },
+        { refcode: "17763033", code: "Q9122", desclong: "Chemisette à Carreaux d'Été" },
+        { refcode: "19015668", code: "Q9122", desclong: "Chemisette à Carreaux d'Été" },
+        { refcode: "18845457", code: "Q9127", desclong: "Les Baskets Estivales" },
+        { refcode: "17014809", code: "Q9128", desclong: "Le Lot de 4 Tee-shirts Unis" },
+        { refcode: "18845458", code: "Q9128", desclong: "Le Lot de 4 Tee-shirts Unis" },
+        { refcode: "17763034", code: "Q9129", desclong: "Le Lot de 2 T-Shirts Sport" },
+        { refcode: "18845459", code: "Q9129", desclong: "Le Lot de 2 T-Shirts Sport" },
+        { refcode: "18845461", code: "Q9139", desclong: "Le Lot de 3 Tee-Shirts Manches Courtes Col V" },
+        { refcode: "18845462", code: "Q9140", desclong: "Le Gilet Reporter Multipoches" },
+        { refcode: "17763027", code: "Q8117", desclong: "Lot de 3 Polos Atlas®" },
+        { refcode: "17014788", code: "Q8127", desclong: "Le Lot de 2 Polos Col Zippé" },
+        { refcode: "18845449", code: "Q8127", desclong: "Le Lot de 2 Polos Col Zippé" },
+        { refcode: "17763035", code: "Q9130", desclong: "Lot de 2 Shorts Microfibre Sport" },
+        { refcode: "18845477", code: "R1118", desclong: "La Chemise Manches Courtes Rayée en Crépon" },
+        { refcode: "18845483", code: "R1140", desclong: "La Chemise Marine à Motifs" },
+        { refcode: "18845463", code: "R0107", desclong: "Le Lot de 4 Paires de Socquettes" },
+        { refcode: "18845464", code: "R0108", desclong: "Le Lot de 6 Boxers Noirs" },
+        { refcode: "18845465", code: "R0111", desclong: "Les Chaussons Estivals" },
+        { refcode: "18845466", code: "R0113", desclong: "Le Lot de 3 Débardeurs" },
+        { refcode: "18845467", code: "R0114", desclong: "Le Lot de 2 Shorts de Bain" },
+        { refcode: "18845468", code: "R0115", desclong: "Les Mules de Plage" },
+        { refcode: "18845470", code: "R1101", desclong: "Le Pyjashort Col V Rayé" },
+        { refcode: "18845471", code: "R1104", desclong: "Le Lot de 4 Polos Manches Courtes" },
+        { refcode: "18845472", code: "R1105", desclong: "Le Lot de 2 Pantalons Cargo en Jean" },
+        { refcode: "18845473", code: "R1107", desclong: "Le Double Bracelet Simili-Cuir et Métal" },
+        { refcode: "18845474", code: "R1108", desclong: "La Bague Ethnique Réglable" },
+        { refcode: "18847011", code: "R1114", desclong: "Le Lot de 2 Tee-Shirts Manches Courtes" },
+        { refcode: "18845478", code: "R1122", desclong: "La Chemise Crépon Manches Courtes" },
+        { refcode: "18845479", code: "R1123", desclong: "La Chemise Crépon Manches Courtes" },
+        { refcode: "18845480", code: "R1124", desclong: "La Chemise Crépon Manches Courtes" },
+        { refcode: "18847012", code: "R1127", desclong: "Le Tee-Shirt Tie & Dye à Col Lacé" },
+        { refcode: "18845482", code: "R1138", desclong: "Le Bermuda Détente Cargo en Microfibre" },
+        { refcode: "18845483", code: "R1140", desclong: "La Chemise Marine à Motifs" },
+        { refcode: "18845484", code: "R1144", desclong: "Le Lot de 2 Bermudas en Jersey" },
+        { refcode: "18845485", code: "R1148", desclong: "Le Lot de 2 Shorts Microfibre" },
+        { refcode: "18845485", code: "R1148", desclong: "Le Lot de 2 Shorts Microfibre" },
+        { refcode: "18845486", code: "R1152", desclong: "Le Lot de 4 Paires de Chaussettes Sport" },
+        { refcode: "18845487", code: "R1159", desclong: "Le Bermuda en Toile 2 Poches Cargo" },
+        { refcode: "18845488", code: "R1160", desclong: "Le Bermuda en Toile 2 Poches Cargo" },
+        { refcode: "18845476", code: "R1116", desclong: "La Chemise Manches Courtes Coton/Lin" },
+        { refcode: "18845477", code: "R1118", desclong: "La Chemise Manches Courtes Rayée en Crépon" },
+        { refcode: "", code: "V0193", desclong: "Les Mocassins en Toile Élastiqués" },
+        { refcode: "18845492", code: "Y1177", desclong: "La Chemise en Jean Winch & Wheel" },
+        { refcode: "", code: "Y1170", desclong: "Le Polo Winch & Wheel Nauting Club" },
+        { refcode: "", code: "ZS110", desclong: "L’Ensemble Détente Fluide Imprimé Exotique" },
+        { refcode: "", code: "ZS203", desclong: "Tee-Shirt Imprimé Feuillage Exotique" },
+        { refcode: "18845498", code: "ZU806", desclong: "Le Lot de 2 Tee-Shirts Imprimé Epaules" },
+        { refcode: "18845499", code: "ZU907", desclong: "Les Baskets Chaussettes Ultra-Légères" },
+        { refcode: "17763074", code: "ZV009", desclong: "Pantacourt en Twill Stretch" },
+        { refcode: "18845500", code: "ZV101", desclong: "La Veste en Jean Stretch à Rivets" },
+        { refcode: "18845502", code: "ZV105", desclong: "La Chemise Unie en Gaze de Coton" },
+        { refcode: "18845503", code: "ZV106", desclong: "Le Pantalon Uni en Gaze de Coton" },
+        { refcode: "18845504", code: "ZV107", desclong: "Le Lot de 2 Débardeurs en Coton Stretch" },
+        { refcode: "18845505", code: "ZV110", desclong: "Le Pyjashort Estival en Coton" },
+        { refcode: "18845501", code: "ZV102", desclong: "Le Jegging 7/8ème à 5 Poches" },
+        { refcode: "18845506", code: "ZV113", desclong: "La Robe Estivale" },
+        { refcode: "17436260", code: "ZP204", desclong: "Tunique Crêpe Imprimé Exotique" },
+        { refcode: "17283810", code: "ZT803", desclong: "Tee-Shirt Imprimé Végétal" }
+    ];
+
+    // --- 2. SUPPRESSION DES ACCENTS ET CASSE ---
+    function normaliserTexte(texte) {
+        if (!texte) return "";
+        return texte
+            .toLowerCase()
+            .normalize("NFD")             // Sépare les caractères de leurs accents
+            .replace(/[\u0300-\u036f]/g, ""); // Supprime les blocs d'accents
+    }
+
+    // --- 3. LOGIQUE DE RECHERCHE ---
+    function executerRecherche() {
+        const saisie = document.getElementById("searchInput").value.trim();
+        const tbody = document.getElementById("resultTableBody");
+        const infoZone = document.getElementById("infoZone");
+        
+        tbody.innerHTML = ""; // Réinitialise l'affichage
+
+        // Si le champ est vide, on affiche tout par défaut
+        if (saisie === "") {
+            afficherResultats(donneesProduits);
+            infoZone.textContent = "Tous les produits sont affichés.";
+            return;
+        }
+
+        // Normalisation de la saisie utilisateur
+        let saisieNettoyee = normaliserTexte(saisie);
+
+        // Traduction de l'étoile (*) en syntaxe d'expression régulière (Regex)
+        let patternRegex = saisieNettoyee
+            .replace(/[-\/\\^$+?.()|[\]{}]/g, '\\$&') 
+            .replace(/\*/g, '.*');
+        
+        // Si l'utilisateur n'a écrit aucune étoile, on applique un comportement "contient" automatique
+        if (!saisie.includes('*')) {
+            patternRegex = '.*' + patternRegex + '.*';
+        }
+
+        // Création de l'expression régulière stricte
+        const regex = new RegExp('^' + patternRegex + '$');
+
+        // Filtrage global sur les trois colonnes
+        const resultatsFiltres = donneesProduits.filter(produit => {
+            const ref = normaliserTexte(produit.refcode);
+            const code = normaliserTexte(produit.code);
+            const desc = normaliserTexte(produit.desclong);
+
+            return regex.test(ref) || regex.test(code) || regex.test(desc);
+        });
+
+        // Affichage des lignes trouvées
+        if (resultatsFiltres.length > 0) {
+            afficherResultats(resultatsFiltres);
+            infoZone.textContent = `${resultatsFiltres.length} résultat(s) trouvé(s) pour "${saisie}".`;
+        } else {
+            tbody.innerHTML = `<tr><td colspan="3" class="no-result">Aucun résultat correspondant.</td></tr>`;
+            infoZone.textContent = `0 résultat pour "${saisie}".`;
+        }
+    }
+
+    // --- 4. INJECTION DU HTML ---
+    function afficherResultats(liste) {
+        const tbody = document.getElementById("resultTableBody");
+        liste.forEach(produit => {
+            const ligne = document.createElement("tr");
+            ligne.innerHTML = `
+                <td><strong>${produit.refcode}</strong></td>
+                <td>${produit.code}</td>
+                <td>${produit.desclong}</td>
+            `;
+            tbody.appendChild(ligne);
+        });
+    }
+
+    // --- 5. ÉCOUTEURS D'ÉVÉNEMENTS ---
+    document.getElementById("searchBtn").addEventListener("click", executerRecherche);
+    
+    // Lance la recherche également lors de l'appui sur la touche Entrée
+    document.getElementById("searchInput").addEventListener("keyup", function(e) {
+        if (e.key === "Enter") {
+            executerRecherche();
+        }
+    });
+
+    // --- 6. AJOUT DYNAMIQUE DU FOOTER DE SIGNATURE ---
+    const footer = document.createElement('footer');
+    footer.style.textAlign = 'center';
+    footer.style.padding = '20px 10px';
+    footer.style.marginTop = '40px';
+    footer.style.borderTop = '1px solid #eaeaea';
+    footer.style.fontFamily = 'Arial, sans-serif';
+    footer.style.fontSize = '14px';
+    footer.style.color = '#666';
+
+    footer.innerHTML = `
+        <p>Créé par 
+           <a href="mailto:rjnasolo@gmail.com" style="color: #0076ff; text-decoration: none; font-weight: bold;">
+              rjnasolo@gmail.com
+           </a>
+        </p>
+    `;
+    document.body.appendChild(footer);
+
+    // Initialisation au chargement de la page
+    afficherResultats(donneesProduits);
+</script>
+
+</body>
+</html>
